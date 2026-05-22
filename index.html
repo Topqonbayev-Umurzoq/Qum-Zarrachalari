@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Qum Zarrachalari</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: #000;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    /* Prevent iOS bounce scroll */
+    position: fixed;
+    touch-action: none;
+  }
+
+  canvas {
+    display: block;
+    position: fixed;
+    top: 0; left: 0;
+    touch-action: none;
+  }
+
+  /* ── Bottom UI panel ── */
+  #ui {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 16px 20px;
+    /* subtle dark gradient so input is always visible */
+    background: linear-gradient(transparent, rgba(0,0,0,0.85) 40%);
+    gap: 6px;
+  }
+
+  /* ── Hint ── */
+  #hint {
+    color: rgba(0, 255, 136, 0.35);
+    font-family: 'Courier New', monospace;
+    font-size: clamp(9px, 2.5vw, 12px);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    user-select: none;
+    text-align: center;
+  }
+
+  /* ── Neon input ── */
+  #wordInput {
+    background: rgba(0, 0, 0, 0.82);
+    border: 2px solid #00ff88;
+    border-radius: 6px;
+    color: #00ff88;
+    font-family: 'Courier New', monospace;
+    font-size: clamp(16px, 4.5vw, 22px);  /* min 16px prevents iOS zoom */
+    letter-spacing: 0.1em;
+    outline: none;
+    padding: clamp(8px, 2vw, 12px) clamp(14px, 4vw, 24px);
+    text-align: center;
+    width: min(88vw, 480px);
+    /* Neon glow */
+    box-shadow:
+      0 0 8px #00ff88,
+      0 0 20px rgba(0,255,136,0.35),
+      inset 0 0 8px rgba(0,255,136,0.06);
+    transition: box-shadow 0.3s ease;
+    /* Prevent iOS from auto-capitalizing/correcting */
+    autocapitalize: none;
+    autocorrect: off;
+    spellcheck: false;
+  }
+
+  #wordInput::placeholder {
+    color: rgba(0, 255, 136, 0.38);
+    font-size: clamp(11px, 3vw, 15px);
+  }
+
+  #wordInput:focus {
+    box-shadow:
+      0 0 12px #00ff88,
+      0 0 35px rgba(0,255,136,0.55),
+      0 0 70px rgba(0,255,136,0.18),
+      inset 0 0 12px rgba(0,255,136,0.1);
+  }
+
+  /* ── Character count badge ── */
+  #charCount {
+    color: rgba(0,255,136,0.25);
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    user-select: none;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="ui">
+  <span id="hint">har harf yozganda zarralar o'zgaradi • enter = yangi so'z</span>
+  <input
+    id="wordInput"
+    type="text"
+    maxlength="16"
+    placeholder="SO'Z YAZ..."
+    autocomplete="off"
+    autocorrect="off"
+    autocapitalize="characters"
+    spellcheck="false"
+    inputmode="text"
+  />
+  <span id="charCount">0 / 16</span>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  QUM ZARRACHALARI SIMULYATSIYASI — Mobil + Real-time versiya
+//
+//  Asosiy o'zgarishlar:
+//   • Har bir harf yozilganda darhol particles yangi shaklga o'tadi
+//   • Mobil ekran uchun kichikroq particle count + yirikroq harf
+//   • Touch repulsion qo'shildi
+//   • isMobile aniqlanadi va sozlamalar shunga qarab o'rnatiladi
+//   • Keyboard ochilganda canvas qayta o'lchalanadi
+// ═══════════════════════════════════════════════════════════════════
+
+const canvas  = document.getElementById('canvas');
+const ctx     = canvas.getContext('2d');
+const input   = document.getElementById('wordInput');
+const charEl  = document.getElementById('charCount');
+
+// ── Mobil aniqlash ────────────────────────────────────────────
+const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+               || window.innerWidth < 600;
+
+// ── Konfiguratsiya (mobil/desktop ajratilgan) ─────────────────
+const CFG = {
+  COUNT          : isMobile ? 4000 : 7000,
+  PARTICLE_RADIUS: isMobile ? 1.5  : 1.2,
+  FRICTION       : 0.87,
+  ATTRACTION     : isMobile ? 0.06 : 0.055,
+  REPULSION_R    : isMobile ? 40   : 22,
+  REPULSION_F    : isMobile ? 5    : 4,
+  VORTEX_R       : 0.20,
+  VORTEX_SPEED   : 0.006,
+  BURST_STRENGTH : 12,
+  SAMPLE_STEP    : isMobile ? 5    : 4,    // Kattaroq step = tezroq + qalin piksel
+  // Matn zonasi: ekranning yuqori qismida (keyboard ochiq bo'lganda pastda joy yo'q)
+  TEXT_ZONE_TOP  : 0.08,  // matn yuqoridan shu fraksiyadan boshlanadi
+  TEXT_ZONE_BOT  : 0.72,  // matn shu fraksiyada tugaydi
+  TEXT_MAX_W     : 0.90,  // matn enining maksimal ulushi
+};
+
+// ── Holat ────────────────────────────────────────────────────
+const STATE = { VORTEX: 'vortex', TEXT: 'text' };
+let scene = STATE.VORTEX;
+let currentWord = '';
+
+// Typing debounce — tez yozganda har ms da qayta hisoblashdan saqlaydi
+let typingTimer = null;
+const TYPING_DELAY = 80; // ms
+
+// ── Pointer (mouse / touch) ───────────────────────────────────
+const pointer = { x: -9999, y: -9999, active: false };
+
+window.addEventListener('mousemove', e => {
+  pointer.x = e.clientX; pointer.y = e.clientY; pointer.active = true;
+});
+window.addEventListener('mouseleave', () => { pointer.active = false; });
+
+// Touch repulsion
+window.addEventListener('touchmove', e => {
+  pointer.x = e.touches[0].clientX;
+  pointer.y = e.touches[0].clientY;
+  pointer.active = true;
+}, { passive: true });
+window.addEventListener('touchend', () => {
+  setTimeout(() => { pointer.active = false; }, 300);
+}, { passive: true });
+
+// ═══════════════════════════════════════════════════════════════
+//  PARTICLE SINFI
+// ═══════════════════════════════════════════════════════════════
+class Particle {
+  constructor(idx) {
+    this.idx = idx;
+    this.x  = Math.random() * canvas.width;
+    this.y  = Math.random() * canvas.height;
+    this.vx = 0;
+    this.vy = 0;
+    this.targetX = this.x;
+    this.targetY = this.y;
+
+    // Vortex xususiyatlari
+    this.vortexAngle  = Math.random() * Math.PI * 2;
+    this.vortexRadius = 0.25 + Math.random() * 0.75;
+    this.vortexSpeed  = (0.5 + Math.random() * 0.9) * CFG.VORTEX_SPEED;
+
+    // Vizual
+    this.r         = CFG.PARTICLE_RADIUS * (0.55 + Math.random() * 0.9);
+    this.baseAlpha = 0.5 + Math.random() * 0.5;
+  }
+
+  /* Spiral vortex target yangilash */
+  updateVortex(cx, cy, maxR) {
+    this.vortexAngle += this.vortexSpeed;
+    const twist = this.vortexAngle + this.idx * 0.00035;
+    const rr    = maxR * this.vortexRadius;
+    this.targetX = cx + Math.cos(twist) * rr;
+    this.targetY = cy + Math.sin(twist) * rr * 0.5; // tekis ellips
+  }
+
+  /* Fizika: spring + friction + repulsion */
+  update() {
+    // Spring tortish
+    this.vx += (this.targetX - this.x) * CFG.ATTRACTION;
+    this.vy += (this.targetY - this.y) * CFG.ATTRACTION;
+
+    // Pointer/barmoq itarish
+    if (pointer.active) {
+      const dx = this.x - pointer.x;
+      const dy = this.y - pointer.y;
+      const d2 = dx * dx + dy * dy;
+      const rr = CFG.REPULSION_R;
+      if (d2 < rr * rr) {
+        const d = Math.sqrt(d2) || 0.001;
+        const f = (1 - d / rr) * CFG.REPULSION_F;
+        this.vx += (dx / d) * f;
+        this.vy += (dy / d) * f;
+      }
+    }
+
+    this.vx *= CFG.FRICTION;
+    this.vy *= CFG.FRICTION;
+    this.x  += this.vx;
+    this.y  += this.vy;
+  }
+
+  /* Chizish */
+  draw() {
+    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+    ctx.globalAlpha = Math.min(1, this.baseAlpha + speed * 0.045);
+    ctx.fillRect(this.x - this.r, this.y - this.r, this.r * 2, this.r * 2);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PARTICLE POOL
+// ═══════════════════════════════════════════════════════════════
+let particles = [];
+
+function initParticles() {
+  particles = [];
+  for (let i = 0; i < CFG.COUNT; i++) particles.push(new Particle(i));
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MATNDAN PIKSEL KOORDINATALARI OLISH
+//  — Matn ekranning yuqori 70% zone'ida joylashadi,
+//    shunda keyboard ustiga chiqmaydi.
+// ═══════════════════════════════════════════════════════════════
+function sampleTextPositions(word) {
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // Matn joylashadigan zona
+  const zoneTop = H * CFG.TEXT_ZONE_TOP;
+  const zoneH   = H * (CFG.TEXT_ZONE_BOT - CFG.TEXT_ZONE_TOP);
+  const maxW    = W * CFG.TEXT_MAX_W;
+
+  const off    = document.createElement('canvas');
+  off.width    = W;
+  off.height   = H;
+  const offCtx = off.getContext('2d');
+
+  // Dastlabki font o'lchami: zona balandligiga qarab
+  let fontSize = Math.floor(zoneH * 0.72);
+  const fontStr = (sz) => `900 ${sz}px 'Arial Black', Impact, sans-serif`;
+  offCtx.font = fontStr(fontSize);
+
+  // Eni moslashtirish
+  let tw = offCtx.measureText(word).width;
+  if (tw > maxW) {
+    fontSize = Math.floor(fontSize * maxW / tw);
+    offCtx.font = fontStr(fontSize);
+    tw = offCtx.measureText(word).width;
+  }
+
+  offCtx.fillStyle    = '#fff';
+  offCtx.textAlign    = 'center';
+  offCtx.textBaseline = 'middle';
+  offCtx.fillText(word, W / 2, zoneTop + zoneH / 2);
+
+  // Piksel namunasi
+  const data = offCtx.getImageData(0, 0, W, H).data;
+  const step = CFG.SAMPLE_STEP;
+  const pts  = [];
+
+  for (let y = 0; y < H; y += step) {
+    for (let x = 0; x < W; x += step) {
+      if (data[(y * W + x) * 4 + 3] > 100) {
+        pts.push({
+          x: x + (Math.random() - 0.5) * step * 0.8,
+          y: y + (Math.random() - 0.5) * step * 0.8
+        });
+      }
+    }
+  }
+
+  return pts;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PARTICLE MAQSADLARINI BELGILASH
+// ═══════════════════════════════════════════════════════════════
+function assignTargets(word) {
+  const pts = sampleTextPositions(word);
+  if (!pts.length) { scene = STATE.VORTEX; return; }
+
+  // Fisher-Yates shuffle — organik tarqatish uchun
+  for (let i = pts.length - 1; i > 0; i--) {
+    const j = (Math.random() * (i + 1)) | 0;
+    const t = pts[i]; pts[i] = pts[j]; pts[j] = t;
+  }
+
+  const cx = canvas.width / 2;
+  const cy = canvas.height * (CFG.TEXT_ZONE_TOP + (CFG.TEXT_ZONE_BOT - CFG.TEXT_ZONE_TOP) / 2);
+
+  for (let i = 0; i < particles.length; i++) {
+    if (i < pts.length) {
+      particles[i].targetX = pts[i].x;
+      particles[i].targetY = pts[i].y;
+    } else {
+      // Ortiqcha zarralar: matn atrofida ko'rinmas "bulut" hosil qiladi
+      const base = pts[i % pts.length];
+      const ang  = Math.random() * Math.PI * 2;
+      const dist = 30 + Math.random() * 80;
+      particles[i].targetX = base.x + Math.cos(ang) * dist;
+      particles[i].targetY = base.y + Math.sin(ang) * dist;
+    }
+  }
+
+  scene = STATE.TEXT;
+}
+
+// ── Kichik burst effekti (matndan matnga o'tishda) ─────────────
+function softBurst() {
+  const cx = canvas.width / 2;
+  const cy = canvas.height * 0.4;
+  for (const p of particles) {
+    const ang = Math.atan2(p.y - cy, p.x - cx) + (Math.random() - 0.5);
+    const spd = 3 + Math.random() * 6;
+    p.vx += Math.cos(ang) * spd;
+    p.vy += Math.sin(ang) * spd;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  INPUT REAL-TIME HODISASI
+//  — Har harf qo'shilganda / o'chirilganda zarralar yangilanadi
+// ═══════════════════════════════════════════════════════════════
+function onInputChange() {
+  const raw  = input.value;
+  const word = raw.toUpperCase().trim();
+  charEl.textContent = `${raw.length} / 16`;
+
+  if (!word) {
+    // Bo'sh bo'lsa vortexga qayt
+    currentWord = '';
+    scene = STATE.VORTEX;
+    return;
+  }
+
+  if (word === currentWord) return; // hech narsa o'zgarmagan
+  currentWord = word;
+
+  // Kichik burst effekti faqat matndan matnga o'tishda
+  if (scene === STATE.TEXT) softBurst();
+
+  // Debounce: tez yozganda har harfda qayta hisoblashni biroz kechiktir
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(() => {
+    assignTargets(word);
+  }, TYPING_DELAY);
+}
+
+// Input hodisalari — barcha holatlar uchun
+input.addEventListener('input',   onInputChange);
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    input.blur(); // Mobilda keyboardni yashirish
+    onInputChange();
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  CANVAS O'LCHAMINI YANGILASH
+//  Mobilda keyboard ochilganda visualViewport o'zgaradi
+// ═══════════════════════════════════════════════════════════════
+function resize() {
+  // visualViewport mavjud bo'lsa (mobil keyboard kompensatsiyasi)
+  const vvp = window.visualViewport;
+  canvas.width  = vvp ? vvp.width  : window.innerWidth;
+  canvas.height = vvp ? vvp.height : window.innerHeight;
+}
+
+// visualViewport resize: mobil keyboard ochilganda
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => {
+    resize();
+    // Matn hali ko'rsatilayotgan bo'lsa — qayta hisoblash
+    if (scene === STATE.TEXT && currentWord) {
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => assignTargets(currentWord), 150);
+    }
+  });
+} else {
+  window.addEventListener('resize', () => {
+    resize();
+    if (scene === STATE.TEXT && currentWord) {
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => assignTargets(currentWord), 150);
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ASOSIY ANIMATSIYA SIKLI
+// ═══════════════════════════════════════════════════════════════
+function loop() {
+  requestAnimationFrame(loop);
+
+  // Harakatlanish izi — qoraroq = qisqaroq iz (tezlikka mos)
+  ctx.fillStyle = 'rgba(0,0,0,0.20)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#ffffff';
+
+  const cx   = canvas.width  / 2;
+  // Vortex markazi: matn zonasining markazi
+  const cy   = canvas.height * (CFG.TEXT_ZONE_TOP + (CFG.TEXT_ZONE_BOT - CFG.TEXT_ZONE_TOP) / 2);
+  const maxR = Math.min(canvas.width, canvas.height) * CFG.VORTEX_R;
+
+  for (const p of particles) {
+    if (scene === STATE.VORTEX) p.updateVortex(cx, cy, maxR);
+    p.update();
+    p.draw();
+  }
+
+  ctx.globalAlpha = 1;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ISHGA TUSHIRISH
+// ═══════════════════════════════════════════════════════════════
+resize();
+initParticles();
+loop();
+
+// Fokus — mobilda avtomatik keyboard ochmaslik uchun faqat desktop
+if (!isMobile) {
+  setTimeout(() => input.focus(), 300);
+}
+</script>
+</body>
+</html>
