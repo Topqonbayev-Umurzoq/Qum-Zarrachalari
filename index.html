@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="uz">
 <head>
@@ -5,20 +6,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Qum Zarrachalari</title>
+<title>Qum Zarrachalari ✦</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+  :root {
+    --nc: #00ff88;
+    --nc-dim: rgba(0,255,136,0.15);
+    --nc-glow: rgba(0,255,136,0.4);
+  }
   html, body {
     background: #000;
     overflow: hidden;
-    width: 100%;
-    height: 100%;
-    /* Prevent iOS bounce scroll */
+    width: 100%; height: 100%;
     position: fixed;
     touch-action: none;
+    font-family: 'Space Mono', monospace;
   }
-
   canvas {
     display: block;
     position: fixed;
@@ -26,94 +30,287 @@
     touch-action: none;
   }
 
-  /* ── Bottom UI panel ── */
+  /* ── TOP BAR ── */
+  #topBar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 18px 8px;
+    background: linear-gradient(rgba(0,0,0,0.85), transparent);
+  }
+  #badge {
+    color: rgba(255,255,255,0.22);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    user-select: none;
+  }
+  #title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(16px, 4vw, 22px);
+    letter-spacing: 0.25em;
+    color: var(--nc);
+    text-shadow: 0 0 12px var(--nc), 0 0 30px var(--nc-glow);
+    transition: color 0.5s, text-shadow 0.5s;
+    user-select: none;
+  }
+  #modeLabel {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    user-select: none;
+    opacity: 0.4;
+    color: var(--nc);
+    transition: color 0.5s;
+  }
+
+  /* ── FPS & stats ── */
+  #stats {
+    position: fixed;
+    top: 50px; left: 18px;
+    font-size: 9px;
+    color: rgba(255,255,255,0.12);
+    letter-spacing: 0.1em;
+    user-select: none;
+    z-index: 10;
+    line-height: 1.7;
+  }
+
+  /* ── BOTTOM UI ── */
   #ui {
     position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    bottom: 0; left: 0; right: 0;
     z-index: 10;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 12px 16px 20px;
-    /* subtle dark gradient so input is always visible */
-    background: linear-gradient(transparent, rgba(0,0,0,0.85) 40%);
-    gap: 6px;
+    padding: 10px 16px 20px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.95) 38%);
+    gap: 9px;
+  }
+
+  /* ── Color dots ── */
+  #colorRow {
+    display: flex;
+    gap: 7px;
+    align-items: center;
+  }
+  .cBtn {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  }
+  .cBtn:hover { transform: scale(1.25); }
+  .cBtn.active {
+    border-color: #fff;
+    transform: scale(1.2);
+    box-shadow: 0 0 8px currentColor;
+  }
+
+  /* ── Mode buttons row ── */
+  #modeRow {
+    display: flex;
+    gap: 7px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: min(95vw, 560px);
+  }
+  .ctrl-btn {
+    background: rgba(0,0,0,0.5);
+    border: 1.5px solid var(--nc);
+    border-radius: 4px;
+    color: var(--nc);
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(8px, 2vw, 10px);
+    letter-spacing: 0.1em;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s, border-color 0.5s, color 0.5s;
+    text-transform: uppercase;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .ctrl-btn:hover {
+    background: rgba(255,255,255,0.08);
+    box-shadow: 0 0 10px var(--nc);
+  }
+  .ctrl-btn.active {
+    background: rgba(255,255,255,0.12);
+    box-shadow: 0 0 14px var(--nc), 0 0 4px var(--nc);
+  }
+
+  /* ── Slider row ── */
+  #sliderRow {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    width: min(90vw, 480px);
+  }
+  .sliderLabel {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: rgba(255,255,255,0.3);
+    white-space: nowrap;
+    text-transform: uppercase;
+    min-width: 60px;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    flex: 1;
+    height: 2px;
+    background: rgba(255,255,255,0.1);
+    outline: none;
+    border-radius: 2px;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--nc);
+    cursor: pointer;
+    box-shadow: 0 0 6px var(--nc);
+    transition: background 0.5s, box-shadow 0.5s;
   }
 
   /* ── Hint ── */
   #hint {
-    color: rgba(0, 255, 136, 0.35);
-    font-family: 'Courier New', monospace;
-    font-size: clamp(9px, 2.5vw, 12px);
-    letter-spacing: 0.18em;
+    color: var(--nc);
+    opacity: 0.3;
+    font-size: clamp(8px, 2vw, 10px);
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     user-select: none;
     text-align: center;
+    transition: color 0.5s;
   }
 
-  /* ── Neon input ── */
+  /* ── Input ── */
   #wordInput {
-    background: rgba(0, 0, 0, 0.82);
-    border: 2px solid #00ff88;
-    border-radius: 6px;
-    color: #00ff88;
-    font-family: 'Courier New', monospace;
-    font-size: clamp(16px, 4.5vw, 22px);  /* min 16px prevents iOS zoom */
-    letter-spacing: 0.1em;
+    background: rgba(0,0,0,0.82);
+    border: 2px solid var(--nc);
+    border-radius: 5px;
+    color: var(--nc);
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(16px, 4.5vw, 22px);
+    letter-spacing: 0.15em;
     outline: none;
-    padding: clamp(8px, 2vw, 12px) clamp(14px, 4vw, 24px);
+    padding: clamp(8px,2vw,12px) clamp(14px,4vw,24px);
     text-align: center;
     width: min(88vw, 480px);
-    /* Neon glow */
-    box-shadow:
-      0 0 8px #00ff88,
-      0 0 20px rgba(0,255,136,0.35),
-      inset 0 0 8px rgba(0,255,136,0.06);
-    transition: box-shadow 0.3s ease;
-    /* Prevent iOS from auto-capitalizing/correcting */
-    autocapitalize: none;
-    autocorrect: off;
-    spellcheck: false;
+    box-shadow: 0 0 8px var(--nc), 0 0 24px var(--nc-dim), inset 0 0 8px rgba(0,255,136,0.04);
+    transition: box-shadow 0.3s, border-color 0.5s, color 0.5s;
   }
-
-  #wordInput::placeholder {
-    color: rgba(0, 255, 136, 0.38);
-    font-size: clamp(11px, 3vw, 15px);
-  }
-
+  #wordInput::placeholder { color: var(--nc); opacity: 0.3; font-size: clamp(10px,2.8vw,13px); }
   #wordInput:focus {
-    box-shadow:
-      0 0 12px #00ff88,
-      0 0 35px rgba(0,255,136,0.55),
-      0 0 70px rgba(0,255,136,0.18),
-      inset 0 0 12px rgba(0,255,136,0.1);
+    box-shadow: 0 0 16px var(--nc), 0 0 44px var(--nc-glow), inset 0 0 14px rgba(0,255,136,0.07);
   }
 
-  /* ── Character count badge ── */
   #charCount {
-    color: rgba(0,255,136,0.25);
-    font-family: 'Courier New', monospace;
-    font-size: 10px;
+    color: var(--nc);
+    opacity: 0.22;
+    font-size: 9px;
     letter-spacing: 0.12em;
     user-select: none;
+    transition: color 0.5s;
   }
+
+  /* ── PULSE RING (click feedback) ── */
+  .pulseRing {
+    position: fixed;
+    width: 0; height: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 20;
+    border: 1.5px solid var(--nc);
+    transform: translate(-50%, -50%);
+    animation: pulseOut 0.6s ease-out forwards;
+  }
+  @keyframes pulseOut {
+    0%   { width:0;   height:0;   opacity:1; }
+    100% { width:80px;height:80px;opacity:0; }
+  }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed;
+    top: 50px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.85);
+    border: 1px solid var(--nc);
+    color: var(--nc);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    padding: 7px 20px;
+    border-radius: 4px;
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s, color 0.5s, border-color 0.5s;
+    text-transform: uppercase;
+    box-shadow: 0 0 14px var(--nc-dim);
+  }
+  #toast.show { opacity: 1; }
 </style>
 </head>
 <body>
 
 <canvas id="canvas"></canvas>
 
+<div id="topBar">
+  <div id="badge">● 0 zarracha</div>
+  <div id="title">QUM ✦ ZARRACHALARI</div>
+  <div id="modeLabel">VORTEX</div>
+</div>
+<div id="stats"></div>
+<div id="toast"></div>
+
 <div id="ui">
-  <span id="hint">har harf yozganda zarralar o'zgaradi • enter = yangi so'z</span>
+  <!-- Color palette -->
+  <div id="colorRow">
+    <div class="cBtn active" data-color="green"  style="background:#00ff88" title="Yashil"></div>
+    <div class="cBtn"        data-color="cyan"   style="background:#00e5ff" title="Ko'k-yashil"></div>
+    <div class="cBtn"        data-color="blue"   style="background:#4488ff" title="Ko'k"></div>
+    <div class="cBtn"        data-color="purple" style="background:#cc44ff" title="Binafsha"></div>
+    <div class="cBtn"        data-color="pink"   style="background:#ff44aa" title="Pushti"></div>
+    <div class="cBtn"        data-color="red"    style="background:#ff4433" title="Qizil"></div>
+    <div class="cBtn"        data-color="orange" style="background:#ff8833" title="To'q sariq"></div>
+    <div class="cBtn"        data-color="gold"   style="background:#ffdd00" title="Oltin"></div>
+    <div class="cBtn"        data-color="white"  style="background:#e0e0e0" title="Oq"></div>
+    <div class="cBtn"        data-color="rainbow" style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)" title="Kamalak"></div>
+  </div>
+
+  <!-- Mode buttons -->
+  <div id="modeRow">
+    <button class="ctrl-btn active" id="btnVortex"  >🌀 Vortex</button>
+    <button class="ctrl-btn"        id="btnExplode" >💥 Portlash</button>
+    <button class="ctrl-btn"        id="btnRain"    >🌧 Yomg'ir</button>
+    <button class="ctrl-btn"        id="btnSpiral"  >🌌 Spiral</button>
+    <button class="ctrl-btn"        id="btnFirework">🎆 Salüt</button>
+    <button class="ctrl-btn"        id="btnWave"    >〰 To'lqin</button>
+    <button class="ctrl-btn"        id="btnBlackhole">⚫ Qora tuynuk</button>
+    <button class="ctrl-btn"        id="btnClear"   >✕ Tozala</button>
+  </div>
+
+  <!-- Sliders -->
+  <div id="sliderRow">
+    <span class="sliderLabel">TEZLIK</span>
+    <input type="range" id="sldSpeed" min="0.3" max="3" step="0.05" value="1">
+    <span class="sliderLabel">ZICHlik</span>
+    <input type="range" id="sldDensity" min="1000" max="18000" step="500" value="9000">
+  </div>
+
+  <span id="hint">so'z yoz → zarralar shakl oladi • enter = yangilash</span>
   <input
     id="wordInput"
     type="text"
     maxlength="16"
     placeholder="SO'Z YAZ..."
-    autocomplete="off"
-    autocorrect="off"
+    autocomplete="off" autocorrect="off"
     autocapitalize="characters"
     spellcheck="false"
     inputmode="text"
@@ -122,120 +319,233 @@
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════════════════════
-//  QUM ZARRACHALARI SIMULYATSIYASI — Mobil + Real-time versiya
-//
-//  Asosiy o'zgarishlar:
-//   • Har bir harf yozilganda darhol particles yangi shaklga o'tadi
-//   • Mobil ekran uchun kichikroq particle count + yirikroq harf
-//   • Touch repulsion qo'shildi
-//   • isMobile aniqlanadi va sozlamalar shunga qarab o'rnatiladi
-//   • Keyboard ochilganda canvas qayta o'lchalanadi
-// ═══════════════════════════════════════════════════════════════════
-
 const canvas  = document.getElementById('canvas');
 const ctx     = canvas.getContext('2d');
 const input   = document.getElementById('wordInput');
 const charEl  = document.getElementById('charCount');
+const badge   = document.getElementById('badge');
+const modeLabel = document.getElementById('modeLabel');
+const statsEl  = document.getElementById('stats');
+const toastEl  = document.getElementById('toast');
 
-// ── Mobil aniqlash ────────────────────────────────────────────
-const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
-               || window.innerWidth < 600;
+const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 600;
 
-// ── Konfiguratsiya (mobil/desktop ajratilgan) ─────────────────
+// ── Toast ─────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1400);
+}
+
+// ── Pulse ring on click ───────────────────────────────────────
+function spawnRing(x, y) {
+  const el = document.createElement('div');
+  el.className = 'pulseRing';
+  el.style.left = x + 'px';
+  el.style.top  = y + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 700);
+}
+window.addEventListener('click', e => {
+  if (!e.target.closest('#ui')) spawnRing(e.clientX, e.clientY);
+});
+
+// ── Color themes ─────────────────────────────────────────────
+const COLORS = {
+  green:   { r:0,   g:255, b:136, hex:'#00ff88', rainbow:false },
+  cyan:    { r:0,   g:229, b:255, hex:'#00e5ff', rainbow:false },
+  blue:    { r:68,  g:136, b:255, hex:'#4488ff', rainbow:false },
+  purple:  { r:204, g:68,  b:255, hex:'#cc44ff', rainbow:false },
+  pink:    { r:255, g:68,  b:170, hex:'#ff44aa', rainbow:false },
+  red:     { r:255, g:68,  b:51,  hex:'#ff4433', rainbow:false },
+  orange:  { r:255, g:136, b:51,  hex:'#ff8833', rainbow:false },
+  gold:    { r:255, g:221, b:0,   hex:'#ffdd00', rainbow:false },
+  white:   { r:220, g:220, b:220, hex:'#e0e0e0', rainbow:false },
+  rainbow: { r:255, g:100, b:100, hex:'#ff6464', rainbow:true  },
+};
+let currentColor = COLORS.green;
+
+function hsvToRgb(h, s, v) {
+  const i = Math.floor(h*6), f = h*6-i;
+  const p=v*(1-s), q=v*(1-f*s), t=v*(1-(1-f)*s);
+  let r,g,b;
+  switch(i%6){
+    case 0:r=v;g=t;b=p;break; case 1:r=q;g=v;b=p;break;
+    case 2:r=p;g=v;b=t;break; case 3:r=p;g=q;b=v;break;
+    case 4:r=t;g=p;b=v;break; case 5:r=v;g=p;b=q;break;
+  }
+  return { r: Math.round(r*255), g: Math.round(g*255), b: Math.round(b*255) };
+}
+
+function applyColor(col) {
+  currentColor = col;
+  const hex = col.rainbow ? '#ff44aa' : col.hex;
+  document.documentElement.style.setProperty('--nc', hex);
+  document.documentElement.style.setProperty('--nc-dim', hex.replace(/^#/, 'rgba(') + '15)');
+  document.documentElement.style.setProperty('--nc-glow', hex.replace(/^#/, 'rgba(') + '40)');
+  modeLabel.style.color = hex;
+}
+
+document.querySelectorAll('.cBtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.cBtn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyColor(COLORS[btn.dataset.color]);
+  });
+});
+applyColor(COLORS.green);
+
+// ── Sliders ───────────────────────────────────────────────────
+let speedMult = 1;
+document.getElementById('sldSpeed').addEventListener('input', e => {
+  speedMult = parseFloat(e.target.value);
+});
+
+let targetCount = isMobile ? 5000 : 9000;
+document.getElementById('sldDensity').addEventListener('change', e => {
+  const newCount = parseInt(e.target.value);
+  if (newCount !== targetCount) {
+    targetCount = newCount;
+    reinitParticles(newCount);
+    showToast(newCount.toLocaleString() + ' ZARRACHA');
+  }
+});
+
+// ── Config ────────────────────────────────────────────────────
 const CFG = {
-  COUNT          : isMobile ? 4000 : 7000,
-  PARTICLE_RADIUS: isMobile ? 1.5  : 1.2,
-  FRICTION       : 0.87,
-  ATTRACTION     : isMobile ? 0.06 : 0.055,
-  REPULSION_R    : isMobile ? 40   : 22,
-  REPULSION_F    : isMobile ? 5    : 4,
-  VORTEX_R       : 0.20,
+  PARTICLE_RADIUS: isMobile ? 1.6 : 1.3,
+  FRICTION       : 0.88,
+  ATTRACTION     : isMobile ? 0.065 : 0.058,
+  REPULSION_R    : isMobile ? 45 : 28,
+  REPULSION_F    : isMobile ? 6  : 5,
+  VORTEX_R       : 0.22,
   VORTEX_SPEED   : 0.006,
-  BURST_STRENGTH : 12,
-  SAMPLE_STEP    : isMobile ? 5    : 4,    // Kattaroq step = tezroq + qalin piksel
-  // Matn zonasi: ekranning yuqori qismida (keyboard ochiq bo'lganda pastda joy yo'q)
-  TEXT_ZONE_TOP  : 0.08,  // matn yuqoridan shu fraksiyadan boshlanadi
-  TEXT_ZONE_BOT  : 0.72,  // matn shu fraksiyada tugaydi
-  TEXT_MAX_W     : 0.90,  // matn enining maksimal ulushi
+  SAMPLE_STEP    : isMobile ? 5 : 4,
+  TEXT_ZONE_TOP  : 0.08,
+  TEXT_ZONE_BOT  : 0.72,
+  TEXT_MAX_W     : 0.90,
 };
 
-// ── Holat ────────────────────────────────────────────────────
-const STATE = { VORTEX: 'vortex', TEXT: 'text' };
+// ── State ─────────────────────────────────────────────────────
+const STATE = { VORTEX:'vortex', TEXT:'text', EXPLODE:'explode', RAIN:'rain',
+                SPIRAL:'spiral', FIREWORK:'firework', WAVE:'wave', BLACKHOLE:'blackhole' };
 let scene = STATE.VORTEX;
 let currentWord = '';
-
-// Typing debounce — tez yozganda har ms da qayta hisoblashdan saqlaydi
 let typingTimer = null;
-const TYPING_DELAY = 80; // ms
+const TYPING_DELAY = 80;
+let specialMode = null;
 
-// ── Pointer (mouse / touch) ───────────────────────────────────
-const pointer = { x: -9999, y: -9999, active: false };
-
-window.addEventListener('mousemove', e => {
-  pointer.x = e.clientX; pointer.y = e.clientY; pointer.active = true;
-});
-window.addEventListener('mouseleave', () => { pointer.active = false; });
-
-// Touch repulsion
-window.addEventListener('touchmove', e => {
-  pointer.x = e.touches[0].clientX;
-  pointer.y = e.touches[0].clientY;
-  pointer.active = true;
-}, { passive: true });
-window.addEventListener('touchend', () => {
-  setTimeout(() => { pointer.active = false; }, 300);
-}, { passive: true });
+// ── Pointer ───────────────────────────────────────────────────
+const pointer = { x:-9999, y:-9999, active:false };
+window.addEventListener('mousemove', e => { pointer.x=e.clientX; pointer.y=e.clientY; pointer.active=true; });
+window.addEventListener('mouseleave', () => { pointer.active=false; });
+window.addEventListener('touchmove', e => { pointer.x=e.touches[0].clientX; pointer.y=e.touches[0].clientY; pointer.active=true; }, {passive:true});
+window.addEventListener('touchend', () => { setTimeout(()=>{ pointer.active=false; },300); }, {passive:true});
 
 // ═══════════════════════════════════════════════════════════════
-//  PARTICLE SINFI
+//  PARTICLE
 // ═══════════════════════════════════════════════════════════════
 class Particle {
   constructor(idx) {
     this.idx = idx;
     this.x  = Math.random() * canvas.width;
     this.y  = Math.random() * canvas.height;
-    this.vx = 0;
-    this.vy = 0;
+    this.vx = 0; this.vy = 0;
     this.targetX = this.x;
     this.targetY = this.y;
-
-    // Vortex xususiyatlari
     this.vortexAngle  = Math.random() * Math.PI * 2;
     this.vortexRadius = 0.25 + Math.random() * 0.75;
     this.vortexSpeed  = (0.5 + Math.random() * 0.9) * CFG.VORTEX_SPEED;
-
-    // Vizual
     this.r         = CFG.PARTICLE_RADIUS * (0.55 + Math.random() * 0.9);
     this.baseAlpha = 0.5 + Math.random() * 0.5;
+    this.hue       = Math.random(); // for rainbow
+    this.phase     = Math.random() * Math.PI * 2; // for wave
+    this.spiralArm = Math.floor(Math.random() * 3); // 0,1,2
   }
 
-  /* Spiral vortex target yangilash */
   updateVortex(cx, cy, maxR) {
-    this.vortexAngle += this.vortexSpeed;
+    this.vortexAngle += this.vortexSpeed * speedMult;
     const twist = this.vortexAngle + this.idx * 0.00035;
-    const rr    = maxR * this.vortexRadius;
+    const rr = maxR * this.vortexRadius;
     this.targetX = cx + Math.cos(twist) * rr;
-    this.targetY = cy + Math.sin(twist) * rr * 0.5; // tekis ellips
+    this.targetY = cy + Math.sin(twist) * rr * 0.5;
   }
 
-  /* Fizika: spring + friction + repulsion */
-  update() {
-    // Spring tortish
-    this.vx += (this.targetX - this.x) * CFG.ATTRACTION;
-    this.vy += (this.targetY - this.y) * CFG.ATTRACTION;
+  updateSpiral(cx, cy, t) {
+    this.vortexAngle += this.vortexSpeed * 1.4 * speedMult;
+    const arms = 3;
+    const armAngle = (this.spiralArm / arms) * Math.PI * 2;
+    const a = this.vortexAngle + armAngle;
+    const rad = (60 + this.vortexRadius * Math.min(canvas.width,canvas.height) * 0.38);
+    this.targetX = cx + Math.cos(a) * rad;
+    this.targetY = cy + Math.sin(a) * rad * 0.55;
+  }
 
-    // Pointer/barmoq itarish
+  updateWave(t) {
+    const W = canvas.width, H = canvas.height;
+    const row = this.idx / particles.length;
+    const xPos = (this.idx % 200) / 200 * W;
+    const waveY = H * 0.42 + Math.sin(xPos * 0.012 + t * 2.5 * speedMult + this.phase) * H * 0.16
+                           + Math.sin(xPos * 0.024 - t * 1.8 * speedMult + this.phase * 1.4) * H * 0.08;
+    this.targetX = xPos + (Math.random()-0.5)*2;
+    this.targetY = waveY + (row - 0.5) * 24;
+  }
+
+  updateBlackhole(cx, cy) {
+    const dx = cx - this.x, dy = cy - this.y;
+    const dist = Math.sqrt(dx*dx+dy*dy) || 1;
+    const pull = 3.5 * speedMult / dist;
+    const tangent = Math.atan2(dy, dx) + 1.2;
+    this.vx += Math.cos(tangent) * pull * dist * 0.012;
+    this.vy += Math.sin(tangent) * pull * dist * 0.012;
+    this.vx += (dx/dist) * pull * 0.6;
+    this.vy += (dy/dist) * pull * 0.6;
+    if (dist < 12) {
+      this.x = cx + (Math.random()-0.5)*canvas.width*0.9;
+      this.y = (Math.random()-0.5)*canvas.height*0.9 + canvas.height/2;
+      this.vx=(Math.random()-0.5)*2; this.vy=(Math.random()-0.5)*2;
+    }
+  }
+
+  updateRain() {
+    this.vy += 0.22 * speedMult;
+    this.vx *= 0.98;
+    this.x  += this.vx;
+    this.y  += this.vy;
+    if (this.y > canvas.height + 10) {
+      this.y  = -10 - Math.random() * canvas.height * 0.3;
+      this.x  = Math.random() * canvas.width;
+      this.vy = (1 + Math.random() * 3) * speedMult;
+      this.vx = (Math.random() - 0.5) * 1.5;
+    }
+  }
+
+  update() {
+    if (specialMode === 'rain')      { this.updateRain(); return; }
+    if (specialMode === 'blackhole') { 
+      this.updateBlackhole(canvas.width/2, canvas.height/2); 
+      this.vx *= CFG.FRICTION;
+      this.vy *= CFG.FRICTION;
+      this.x += this.vx;
+      this.y += this.vy;
+      return;
+    }
+
+    this.vx += (this.targetX - this.x) * CFG.ATTRACTION * speedMult;
+    this.vy += (this.targetY - this.y) * CFG.ATTRACTION * speedMult;
+
     if (pointer.active) {
       const dx = this.x - pointer.x;
       const dy = this.y - pointer.y;
-      const d2 = dx * dx + dy * dy;
+      const d2 = dx*dx + dy*dy;
       const rr = CFG.REPULSION_R;
-      if (d2 < rr * rr) {
+      if (d2 < rr*rr) {
         const d = Math.sqrt(d2) || 0.001;
-        const f = (1 - d / rr) * CFG.REPULSION_F;
-        this.vx += (dx / d) * f;
-        this.vy += (dy / d) * f;
+        const f = (1 - d/rr) * CFG.REPULSION_F;
+        this.vx += (dx/d)*f;
+        this.vy += (dy/d)*f;
       }
     }
 
@@ -244,233 +554,385 @@ class Particle {
     this.x  += this.vx;
     this.y  += this.vy;
   }
-
-  /* Chizish */
-  draw() {
-    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-    ctx.globalAlpha = Math.min(1, this.baseAlpha + speed * 0.045);
-    ctx.fillRect(this.x - this.r, this.y - this.r, this.r * 2, this.r * 2);
-  }
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  PARTICLE POOL
-// ═══════════════════════════════════════════════════════════════
 let particles = [];
+
+function reinitParticles(count) {
+  const old = particles.length;
+  if (count > old) {
+    for (let i = old; i < count; i++) particles.push(new Particle(i));
+  } else {
+    particles.length = count;
+  }
+  badge.textContent = `● ${count.toLocaleString()} zarracha`;
+  if (scene === STATE.TEXT && currentWord) assignTargets(currentWord);
+}
 
 function initParticles() {
   particles = [];
-  for (let i = 0; i < CFG.COUNT; i++) particles.push(new Particle(i));
+  const count = isMobile ? 5000 : 9000;
+  for (let i = 0; i < count; i++) particles.push(new Particle(i));
+  badge.textContent = `● ${count.toLocaleString()} zarracha`;
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  MATNDAN PIKSEL KOORDINATALARI OLISH
-//  — Matn ekranning yuqori 70% zone'ida joylashadi,
-//    shunda keyboard ustiga chiqmaydi.
-// ═══════════════════════════════════════════════════════════════
+// ── Text sampling ─────────────────────────────────────────────
 function sampleTextPositions(word) {
-  const W = canvas.width;
-  const H = canvas.height;
-
-  // Matn joylashadigan zona
+  const W = canvas.width, H = canvas.height;
   const zoneTop = H * CFG.TEXT_ZONE_TOP;
   const zoneH   = H * (CFG.TEXT_ZONE_BOT - CFG.TEXT_ZONE_TOP);
   const maxW    = W * CFG.TEXT_MAX_W;
-
-  const off    = document.createElement('canvas');
-  off.width    = W;
-  off.height   = H;
+  const off = document.createElement('canvas');
+  off.width = W; off.height = H;
   const offCtx = off.getContext('2d');
-
-  // Dastlabki font o'lchami: zona balandligiga qarab
   let fontSize = Math.floor(zoneH * 0.72);
-  const fontStr = (sz) => `900 ${sz}px 'Arial Black', Impact, sans-serif`;
+  const fontStr = sz => `900 ${sz}px 'Bebas Neue', 'Arial Black', Impact, sans-serif`;
   offCtx.font = fontStr(fontSize);
-
-  // Eni moslashtirish
   let tw = offCtx.measureText(word).width;
   if (tw > maxW) {
     fontSize = Math.floor(fontSize * maxW / tw);
     offCtx.font = fontStr(fontSize);
     tw = offCtx.measureText(word).width;
   }
-
-  offCtx.fillStyle    = '#fff';
-  offCtx.textAlign    = 'center';
+  offCtx.fillStyle = '#fff';
+  offCtx.textAlign = 'center';
   offCtx.textBaseline = 'middle';
-  offCtx.fillText(word, W / 2, zoneTop + zoneH / 2);
-
-  // Piksel namunasi
+  offCtx.fillText(word, W/2, zoneTop + zoneH/2);
   const data = offCtx.getImageData(0, 0, W, H).data;
   const step = CFG.SAMPLE_STEP;
   const pts  = [];
-
-  for (let y = 0; y < H; y += step) {
-    for (let x = 0; x < W; x += step) {
-      if (data[(y * W + x) * 4 + 3] > 100) {
+  for (let y=0; y<H; y+=step) {
+    for (let x=0; x<W; x+=step) {
+      if (data[(y*W+x)*4+3] > 100) {
         pts.push({
-          x: x + (Math.random() - 0.5) * step * 0.8,
-          y: y + (Math.random() - 0.5) * step * 0.8
+          x: x+(Math.random()-0.5)*step*0.8,
+          y: y+(Math.random()-0.5)*step*0.8
         });
       }
     }
   }
-
   return pts;
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  PARTICLE MAQSADLARINI BELGILASH
-// ═══════════════════════════════════════════════════════════════
 function assignTargets(word) {
   const pts = sampleTextPositions(word);
   if (!pts.length) { scene = STATE.VORTEX; return; }
-
-  // Fisher-Yates shuffle — organik tarqatish uchun
-  for (let i = pts.length - 1; i > 0; i--) {
-    const j = (Math.random() * (i + 1)) | 0;
-    const t = pts[i]; pts[i] = pts[j]; pts[j] = t;
+  for (let i=pts.length-1; i>0; i--) {
+    const j = (Math.random()*(i+1))|0;
+    const t = pts[i]; pts[i]=pts[j]; pts[j]=t;
   }
-
-  const cx = canvas.width / 2;
-  const cy = canvas.height * (CFG.TEXT_ZONE_TOP + (CFG.TEXT_ZONE_BOT - CFG.TEXT_ZONE_TOP) / 2);
-
-  for (let i = 0; i < particles.length; i++) {
+  for (let i=0; i<particles.length; i++) {
     if (i < pts.length) {
       particles[i].targetX = pts[i].x;
       particles[i].targetY = pts[i].y;
     } else {
-      // Ortiqcha zarralar: matn atrofida ko'rinmas "bulut" hosil qiladi
       const base = pts[i % pts.length];
-      const ang  = Math.random() * Math.PI * 2;
-      const dist = 30 + Math.random() * 80;
-      particles[i].targetX = base.x + Math.cos(ang) * dist;
-      particles[i].targetY = base.y + Math.sin(ang) * dist;
+      const ang  = Math.random()*Math.PI*2;
+      const dist = 30 + Math.random()*80;
+      particles[i].targetX = base.x + Math.cos(ang)*dist;
+      particles[i].targetY = base.y + Math.sin(ang)*dist;
     }
   }
-
   scene = STATE.TEXT;
+  specialMode = null;
+  modeLabel.textContent = 'MATN';
 }
 
-// ── Kichik burst effekti (matndan matnga o'tishda) ─────────────
 function softBurst() {
-  const cx = canvas.width / 2;
+  const cx = canvas.width/2;
   const cy = canvas.height * 0.4;
   for (const p of particles) {
-    const ang = Math.atan2(p.y - cy, p.x - cx) + (Math.random() - 0.5);
-    const spd = 3 + Math.random() * 6;
-    p.vx += Math.cos(ang) * spd;
-    p.vy += Math.sin(ang) * spd;
+    const ang = Math.atan2(p.y-cy, p.x-cx) + (Math.random()-0.5);
+    const spd = 3 + Math.random()*6;
+    p.vx += Math.cos(ang)*spd;
+    p.vy += Math.sin(ang)*spd;
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  INPUT REAL-TIME HODISASI
-//  — Har harf qo'shilganda / o'chirilganda zarralar yangilanadi
-// ═══════════════════════════════════════════════════════════════
+// ── Explode ───────────────────────────────────────────────────
+function triggerExplode() {
+  specialMode = 'explode';
+  scene = STATE.EXPLODE;
+  modeLabel.textContent = 'PORTLASH';
+  showToast('💥 PORTLASH!');
+  const cx = canvas.width/2, cy = canvas.height/2;
+  for (const p of particles) {
+    const ang = Math.random()*Math.PI*2;
+    const spd = (5 + Math.random()*28) * speedMult;
+    p.vx = Math.cos(ang)*spd;
+    p.vy = Math.sin(ang)*spd;
+    p.targetX = cx + Math.cos(ang)*(canvas.width*0.55);
+    p.targetY = cy + Math.sin(ang)*(canvas.height*0.55);
+  }
+  setTimeout(() => {
+    if (specialMode === 'explode') {
+      specialMode = null;
+      if (currentWord) assignTargets(currentWord);
+      else { scene = STATE.VORTEX; modeLabel.textContent = 'VORTEX'; }
+    }
+  }, 1800);
+}
+
+// ── Firework ──────────────────────────────────────────────────
+function triggerFirework() {
+  specialMode = 'firework';
+  scene = STATE.FIREWORK;
+  modeLabel.textContent = 'SALÜT';
+  showToast('🎆 SALÜT!');
+
+  let shots = 0;
+  const shootInterval = setInterval(() => {
+    if (specialMode !== 'firework' || shots > 5) {
+      clearInterval(shootInterval);
+      if (specialMode === 'firework') {
+        specialMode = null;
+        if (currentWord) assignTargets(currentWord);
+        else { scene = STATE.VORTEX; modeLabel.textContent = 'VORTEX'; }
+      }
+      return;
+    }
+    shots++;
+    const cx = canvas.width * (0.25 + Math.random() * 0.5);
+    const cy = canvas.height * (0.15 + Math.random() * 0.4);
+    const slice = Math.floor(particles.length / 6);
+    const start = Math.floor(Math.random() * (particles.length - slice));
+    for (let i = start; i < start + slice; i++) {
+      const p = particles[i];
+      const ang = Math.random()*Math.PI*2;
+      const spd = (3 + Math.random()*18) * speedMult;
+      p.vx = Math.cos(ang)*spd;
+      p.vy = Math.sin(ang)*spd - 2;
+      p.targetX = cx + Math.cos(ang)*120;
+      p.targetY = cy + Math.sin(ang)*120;
+    }
+  }, 480);
+}
+
+// ── Rain ──────────────────────────────────────────────────────
+function triggerRain() {
+  specialMode = 'rain';
+  scene = STATE.RAIN;
+  modeLabel.textContent = "YOMG'IR";
+  showToast("🌧 YOMG'IR");
+  for (const p of particles) {
+    p.x  = Math.random()*canvas.width;
+    p.y  = -Math.random()*canvas.height;
+    p.vx = (Math.random()-0.5)*1.5;
+    p.vy = (1 + Math.random()*4) * speedMult;
+  }
+}
+
+// ── Spiral ────────────────────────────────────────────────────
+function triggerSpiral() {
+  specialMode = null;
+  scene = STATE.SPIRAL;
+  modeLabel.textContent = 'SPIRAL';
+  showToast('🌌 SPIRAL');
+}
+
+// ── Wave ─────────────────────────────────────────────────────
+function triggerWave() {
+  specialMode = null;
+  scene = STATE.WAVE;
+  modeLabel.textContent = "TO'LQIN";
+  showToast("〰 TO'LQIN");
+}
+
+// ── Blackhole ─────────────────────────────────────────────────
+function triggerBlackhole() {
+  specialMode = 'blackhole';
+  scene = STATE.BLACKHOLE;
+  modeLabel.textContent = 'QORA TUYNUK';
+  showToast('⚫ QORA TUYNUK');
+  setTimeout(() => {
+    if (specialMode === 'blackhole') {
+      specialMode = null;
+      if (currentWord) assignTargets(currentWord);
+      else { scene = STATE.VORTEX; modeLabel.textContent = 'VORTEX'; }
+    }
+  }, 4500);
+}
+
+// ── Button controls ───────────────────────────────────────────
+function setActiveBtn(id) {
+  document.querySelectorAll('.ctrl-btn').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+}
+
+document.getElementById('btnVortex').addEventListener('click', () => {
+  setActiveBtn('btnVortex');
+  specialMode = null;
+  if (currentWord) { assignTargets(currentWord); return; }
+  scene = STATE.VORTEX; modeLabel.textContent = 'VORTEX';
+  showToast('🌀 VORTEX');
+});
+document.getElementById('btnExplode').addEventListener('click', () => {
+  setActiveBtn('btnExplode'); triggerExplode();
+});
+document.getElementById('btnRain').addEventListener('click', () => {
+  setActiveBtn('btnRain'); triggerRain();
+});
+document.getElementById('btnSpiral').addEventListener('click', () => {
+  setActiveBtn('btnSpiral'); triggerSpiral();
+});
+document.getElementById('btnFirework').addEventListener('click', () => {
+  setActiveBtn('btnFirework'); triggerFirework();
+});
+document.getElementById('btnWave').addEventListener('click', () => {
+  setActiveBtn('btnWave'); triggerWave();
+});
+document.getElementById('btnBlackhole').addEventListener('click', () => {
+  setActiveBtn('btnBlackhole'); triggerBlackhole();
+});
+document.getElementById('btnClear').addEventListener('click', () => {
+  input.value = ''; charEl.textContent = '0 / 16';
+  currentWord = ''; specialMode = null;
+  scene = STATE.VORTEX; modeLabel.textContent = 'VORTEX';
+  setActiveBtn('btnVortex'); softBurst();
+  showToast('✕ TOZALANDI');
+});
+
+// ── Input ─────────────────────────────────────────────────────
 function onInputChange() {
   const raw  = input.value;
   const word = raw.toUpperCase().trim();
   charEl.textContent = `${raw.length} / 16`;
-
   if (!word) {
-    // Bo'sh bo'lsa vortexga qayt
-    currentWord = '';
-    scene = STATE.VORTEX;
-    return;
+    currentWord = ''; specialMode = null;
+    scene = STATE.VORTEX; modeLabel.textContent = 'VORTEX';
+    setActiveBtn('btnVortex'); return;
   }
-
-  if (word === currentWord) return; // hech narsa o'zgarmagan
+  if (word === currentWord) return;
   currentWord = word;
-
-  // Kichik burst effekti faqat matndan matnga o'tishda
   if (scene === STATE.TEXT) softBurst();
-
-  // Debounce: tez yozganda har harfda qayta hisoblashni biroz kechiktir
   clearTimeout(typingTimer);
-  typingTimer = setTimeout(() => {
-    assignTargets(word);
-  }, TYPING_DELAY);
+  typingTimer = setTimeout(() => { assignTargets(word); }, TYPING_DELAY);
 }
-
-// Input hodisalari — barcha holatlar uchun
-input.addEventListener('input',   onInputChange);
+input.addEventListener('input', onInputChange);
 input.addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    input.blur(); // Mobilda keyboardni yashirish
-    onInputChange();
-  }
+  if (e.key === 'Enter') { e.preventDefault(); input.blur(); onInputChange(); }
 });
 
-// ═══════════════════════════════════════════════════════════════
-//  CANVAS O'LCHAMINI YANGILASH
-//  Mobilda keyboard ochilganda visualViewport o'zgaradi
-// ═══════════════════════════════════════════════════════════════
+// ── Resize ────────────────────────────────────────────────────
 function resize() {
-  // visualViewport mavjud bo'lsa (mobil keyboard kompensatsiyasi)
   const vvp = window.visualViewport;
   canvas.width  = vvp ? vvp.width  : window.innerWidth;
   canvas.height = vvp ? vvp.height : window.innerHeight;
 }
+const resizeListener = () => {
+  resize();
+  if (scene===STATE.TEXT && currentWord) {
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(()=>assignTargets(currentWord), 150);
+  }
+};
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeListener);
+else window.addEventListener('resize', resizeListener);
 
-// visualViewport resize: mobil keyboard ochilganda
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', () => {
-    resize();
-    // Matn hali ko'rsatilayotgan bo'lsa — qayta hisoblash
-    if (scene === STATE.TEXT && currentWord) {
-      clearTimeout(typingTimer);
-      typingTimer = setTimeout(() => assignTargets(currentWord), 150);
-    }
-  });
-} else {
-  window.addEventListener('resize', () => {
-    resize();
-    if (scene === STATE.TEXT && currentWord) {
-      clearTimeout(typingTimer);
-      typingTimer = setTimeout(() => assignTargets(currentWord), 150);
-    }
-  });
-}
+// ── FPS tracking ──────────────────────────────────────────────
+let frameCount = 0, fps = 60, lastFpsTime = performance.now();
 
 // ═══════════════════════════════════════════════════════════════
-//  ASOSIY ANIMATSIYA SIKLI
+//  MAIN LOOP
 // ═══════════════════════════════════════════════════════════════
+let t = 0;
+
 function loop() {
   requestAnimationFrame(loop);
+  frameCount++;
+  t += 0.016 * speedMult;
 
-  // Harakatlanish izi — qoraroq = qisqaroq iz (tezlikka mos)
-  ctx.fillStyle = 'rgba(0,0,0,0.20)';
+  // FPS
+  const now = performance.now();
+  if (now - lastFpsTime >= 1000) {
+    fps = Math.round(frameCount * 1000 / (now - lastFpsTime));
+    frameCount = 0;
+    lastFpsTime = now;
+    statsEl.innerHTML = `FPS ${fps}<br>${particles.length.toLocaleString()} ZAR`;
+  }
+
+  // Trail
+  ctx.fillStyle = 'rgba(0,0,0,0.17)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.fillStyle = '#ffffff';
-
-  const cx   = canvas.width  / 2;
-  // Vortex markazi: matn zonasining markazi
-  const cy   = canvas.height * (CFG.TEXT_ZONE_TOP + (CFG.TEXT_ZONE_BOT - CFG.TEXT_ZONE_TOP) / 2);
+  const col = currentColor;
+  const cx = canvas.width / 2;
+  const cy = canvas.height * (CFG.TEXT_ZONE_TOP + (CFG.TEXT_ZONE_BOT - CFG.TEXT_ZONE_TOP) / 2);
   const maxR = Math.min(canvas.width, canvas.height) * CFG.VORTEX_R;
 
-  for (const p of particles) {
-    if (scene === STATE.VORTEX) p.updateVortex(cx, cy, maxR);
+  // Update targets for continuous modes
+  for (let pi = 0; pi < particles.length; pi++) {
+    const p = particles[pi];
+    if (scene === STATE.VORTEX)  p.updateVortex(cx, cy, maxR);
+    if (scene === STATE.SPIRAL)  p.updateSpiral(cx, cy, t);
+    if (scene === STATE.WAVE)    p.updateWave(t);
     p.update();
-    p.draw();
+
+    // Color
+    let rr, gg, bb, alpha;
+    const speed = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
+
+    if (specialMode === 'rain') {
+      alpha = Math.min(0.9, 0.3 + speed*0.07);
+      if (col.rainbow) {
+        const rc = hsvToRgb((pi / particles.length + t * 0.3) % 1, 0.85, 1);
+        rr=rc.r; gg=rc.g; bb=rc.b;
+      } else { rr=col.r; gg=col.g; bb=col.b; }
+    } else if (specialMode === 'blackhole') {
+      alpha = Math.min(1, 0.2 + speed * 0.09);
+      const dist = Math.sqrt((p.x-cx)*(p.x-cx) + (p.y-cy)*(p.y-cy));
+      const tBlend = Math.min(1, dist / (Math.min(canvas.width,canvas.height)*0.4));
+      if (col.rainbow) {
+        const rc = hsvToRgb((pi / particles.length + t * 0.5) % 1, 1, 1);
+        rr=rc.r; gg=rc.g; bb=rc.b;
+      } else {
+        rr = Math.round(col.r * tBlend + 255*(1-tBlend));
+        gg = Math.round(col.g * tBlend);
+        bb = Math.round(col.b * tBlend + 80*(1-tBlend));
+      }
+    } else {
+      const tBlend = Math.min(1, speed * 0.08);
+      alpha = Math.min(1, p.baseAlpha + speed*0.05);
+      if (col.rainbow) {
+        const rc = hsvToRgb((pi / particles.length + t * 0.15 + speed*0.03) % 1, 0.9, 1);
+        rr = Math.round(rc.r + (255-rc.r)*tBlend);
+        gg = Math.round(rc.g + (255-rc.g)*tBlend);
+        bb = Math.round(rc.b + (255-rc.b)*tBlend);
+      } else {
+        rr = Math.round(col.r + (255-col.r)*tBlend);
+        gg = Math.round(col.g + (255-col.g)*tBlend);
+        bb = Math.round(col.b + (255-col.b)*tBlend);
+      }
+    }
+
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = `rgb(${rr},${gg},${bb})`;
+    ctx.fillRect(p.x-p.r, p.y-p.r, p.r*2, p.r*2);
   }
 
   ctx.globalAlpha = 1;
+
+  // Blackhole center glow
+  if (specialMode === 'blackhole') {
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 40);
+    grad.addColorStop(0, 'rgba(255,255,255,0.7)');
+    grad.addColorStop(0.3, 'rgba(180,80,255,0.3)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 40, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  ISHGA TUSHIRISH
-// ═══════════════════════════════════════════════════════════════
+// ── Init ──────────────────────────────────────────────────────
 resize();
 initParticles();
 loop();
-
-// Fokus — mobilda avtomatik keyboard ochmaslik uchun faqat desktop
-if (!isMobile) {
-  setTimeout(() => input.focus(), 300);
-}
+if (!isMobile) setTimeout(() => input.focus(), 300);
 </script>
 </body>
 </html>
